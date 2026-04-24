@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Higher or Lower – Gamemaster Board</title>
+  <style>
+    :root{
+      --bg:#09090b;
+      --red:#ff3b4d;
+      --red-glow:rgba(255,59,77,.35);
+      --green:#7fff5b;
+      --cyan:#2dd4bf;
+      --yellow:#ffcf5a;
+      --text:#f6f6f7;
+      --muted:#a9abb4;
+      --shadow:0 20px 60px rgba(0,0,0,.45);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      min-height:100vh;
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left,rgba(36,88,255,.16),transparent 22%),
+        radial-gradient(circle at top right,rgba(255,59,77,.12),transparent 24%),
+        linear-gradient(180deg,#0c0c10 0%,#09090b 100%);
+    }
+    .app{max-width:1600px;margin:0 auto;padding:20px;}
+
+    /* TOPBAR */
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;}
+    .badge{display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;background:linear-gradient(135deg,rgba(31,41,55,.85),rgba(17,24,39,.9));border:1px solid rgba(255,255,255,.08);box-shadow:0 0 24px rgba(45,212,191,.12);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:13px;}
+    .badge.red{box-shadow:0 0 24px rgba(255,59,77,.18);}
+    .title-wrap{flex:1;min-width:260px;text-align:center;}
+    .main-title{font-size:clamp(34px,5vw,76px);line-height:.92;text-transform:uppercase;font-weight:900;letter-spacing:.03em;font-style:italic;}
+    .title-accent{color:var(--green);font-size:18px;vertical-align:middle;margin:0 8px;}
+
+    /* BOARD */
+    .board{position:relative;background:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:48px 48px;border:1px solid rgba(255,255,255,.08);border-radius:28px;padding:28px 16px 22px;box-shadow:var(--shadow);overflow:hidden;}
+
+    /* SCALE */
+    .scale-wrap{position:relative;padding:26px 8px 12px;margin-bottom:14px;}
+    .scale-line{position:absolute;left:14px;right:14px;top:63px;height:2px;background:#d8d8d8;opacity:.9;}
+    .markers{display:grid;grid-template-columns:repeat(16,1fr);gap:0;position:relative;z-index:2;}
+    .marker{text-align:center;position:relative;min-height:70px;}
+    .marker .number{font-size:28px;font-weight:900;color:var(--red);text-shadow:0 0 12px rgba(255,59,77,.28);margin-bottom:12px;}
+    .marker .tick{width:2px;height:25px;background:#f1f1f1;margin:0 auto;border-radius:999px;}
+    .end-labels{display:flex;justify-content:space-between;margin-top:-8px;padding:0 2px;color:#ededed;font-size:18px;font-weight:700;}
+
+    /* PLAY AREA */
+    .play-area{display:grid;grid-template-columns:repeat(16,minmax(60px,1fr));gap:8px;align-items:end;min-height:280px;margin-bottom:22px;}
+    .slot{min-height:240px;border-radius:16px;padding:8px 5px;background:linear-gradient(180deg,rgba(255,255,255,.015),rgba(255,255,255,.01));border:1px dashed rgba(255,255,255,.07);display:flex;flex-direction:column-reverse;gap:8px;justify-content:flex-start;transition:.15s ease;}
+    .slot.drag-over,.tray.drag-over{background:#232736;border-color:rgba(45,212,191,.7);box-shadow:0 0 0 2px rgba(45,212,191,.12) inset;}
+    .slot-index{text-align:center;color:var(--muted);font-size:11px;margin-top:auto;padding-top:6px;opacity:.7;}
+
+    /* CARD */
+    .card{position:relative;user-select:none;cursor:grab;border-radius:12px;overflow:hidden;background:#11131a;border:2px solid var(--red);box-shadow:0 0 0 2px rgba(255,59,77,.08),0 0 18px var(--red-glow);transition:transform .14s ease,box-shadow .14s ease,opacity .14s ease;}
+    .card:hover{transform:translateY(-2px);}
+    .card.dragging{opacity:.4;cursor:grabbing;}
+    .card.locked{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(45,212,191,.1),0 0 18px rgba(45,212,191,.22);}
+    .card.revealed{border-color:var(--yellow);box-shadow:0 0 0 2px rgba(255,207,90,.1),0 0 22px rgba(255,207,90,.3);}
+    .card-image{aspect-ratio:1/1;width:100%;object-fit:cover;display:block;background:#222;}
+    .card-body{padding:7px 5px 9px;text-align:center;background:linear-gradient(180deg,rgba(0,0,0,.14),rgba(0,0,0,.28));}
+    .card-name{font-size:13px;font-weight:900;line-height:1.05;text-transform:uppercase;word-break:break-word;letter-spacing:.02em;}
+    .lock-label{position:absolute;top:6px;right:6px;padding:3px 7px;border-radius:999px;background:rgba(0,0,0,.72);color:var(--cyan);font-size:10px;font-weight:900;text-transform:uppercase;border:1px solid rgba(45,212,191,.35);}
+
+    /* VALUE OVERLAY */
+    .value-overlay{position:absolute;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;opacity:0;transition:.2s ease;pointer-events:none;}
+    .card.revealed .value-overlay{opacity:1;}
+    .value-number{font-size:clamp(13px,1.5vw,22px);font-weight:900;color:var(--yellow);text-shadow:0 0 14px rgba(255,207,90,.4);text-align:center;padding:0 4px;line-height:1.1;}
+    .value-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+
+    /* REVEAL BUTTON */
+    .reveal-btn{width:100%;padding:5px 0;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,207,90,.12);color:var(--yellow);border:none;cursor:pointer;transition:.15s ease;}
+    .reveal-btn:hover{background:rgba(255,207,90,.22);}
+    .card.revealed .reveal-btn{background:rgba(255,207,90,.08);color:rgba(255,207,90,.5);}
+
+    /* TRAY */
+    .tray-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+    .tray{min-height:140px;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012));padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;align-items:start;}
+
+    /* CONTROLS */
+    .controls{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:12px;margin:16px 0;}
+    .panel{background:linear-gradient(180deg,rgba(18,20,28,.95),rgba(12,13,18,.96));border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;}
+    .field{display:flex;flex-direction:column;gap:8px;}
+    .field label{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+    input,select,textarea,button{font:inherit;}
+    input,select,textarea{width:100%;border:none;outline:none;color:var(--text);background:#0e1017;border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:11px 13px;}
+    textarea{min-height:200px;resize:vertical;line-height:1.45;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
+    .button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+    button{border:none;cursor:pointer;padding:11px 15px;border-radius:12px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:white;background:#222838;transition:.15s ease;}
+    button:hover{filter:brightness(1.08);transform:translateY(-1px);}
+    .btn-primary{background:linear-gradient(135deg,#ff3b4d,#d9233c);box-shadow:0 0 18px rgba(255,59,77,.22);}
+    .btn-cyan{background:linear-gradient(135deg,#0f766e,#155e75);box-shadow:0 0 18px rgba(45,212,191,.14);}
+    .btn-yellow{background:linear-gradient(135deg,#b45309,#92400e);box-shadow:0 0 18px rgba(255,207,90,.14);}
+    .setup{margin-top:14px;display:grid;grid-template-columns:1fr 320px;gap:16px;}
+    .hint{color:var(--muted);font-size:13px;line-height:1.5;margin-top:12px;}
+    .status-box{display:grid;gap:10px;align-content:start;}
+    .status-pill{padding:11px 13px;border-radius:14px;background:#0e1017;border:1px solid rgba(255,255,255,.08);font-weight:700;font-size:13px;}
+    .empty-note{color:var(--muted);text-align:center;padding:20px 10px;font-weight:700;font-size:13px;}
+
+    @media(max-width:1100px){.controls,.setup{grid-template-columns:1fr;}}
+    @media(max-width:900px){.play-area{grid-template-columns:repeat(8,1fr);}.marker .number{font-size:20px;}}
+    @media(max-width:640px){.play-area{grid-template-columns:repeat(4,1fr);}.tray{grid-template-columns:repeat(2,1fr);}.main-title{font-size:40px;}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="badge">Round <span id="roundBadge">1</span></div>
+    <div class="title-wrap">
+      <h1 class="main-title">
+        <span class="title-accent">◄</span>
+        <span id="titleBadge">Higher or Lower</span>
+        <span class="title-accent">►</span>
+      </h1>
+    </div>
+    <div class="badge red">
+      <span id="gameNameBadge">YouTube Abonnenten</span>
+      <span id="gameCountBadge">Game 1/4</span>
+    </div>
+  </div>
+
+  <section class="board">
+    <div class="scale-wrap">
+      <div class="scale-line"></div>
+      <div class="markers" id="markers"></div>
+      <div class="end-labels"><span>low</span><span>high</span></div>
+    </div>
+    <div class="play-area" id="playArea"></div>
+    <div class="tray-title">
+      <h2 style="margin:0;font-size:18px;text-transform:uppercase;letter-spacing:.04em;">Karten-Bank</h2>
+      <div style="font-size:13px;color:var(--muted);">Ziehe Karten auf einen Slot · Klicke auf „Reveal" zum Aufdecken</div>
+    </div>
+    <div class="tray" id="tray"></div>
+  </section>
+
+  <div class="controls">
+    <div class="panel field">
+      <label>Großer Titel</label>
+      <input id="gameTitleInput" value="Higher or Lower" />
+    </div>
+    <div class="panel field">
+      <label>Spielname</label>
+      <input id="themeInput" value="YouTube Abonnenten" />
+    </div>
+    <div class="panel field">
+      <label>Runde</label>
+      <input id="roundInput" type="number" min="1" value="1" />
+    </div>
+    <div class="panel field">
+      <label>Spielstand</label>
+      <input id="countInput" value="Game 1/4" />
+    </div>
+  </div>
+
+  <div class="setup">
+    <div class="panel">
+      <div class="field">
+        <label>Spiel-Daten (JSON)</label>
+        <textarea id="dataInput"></textarea>
+      </div>
+      <div class="button-row">
+        <button class="btn-cyan" id="loadDataBtn">Daten laden</button>
+        <button class="btn-primary" id="startBtn">Spiel starten</button>
+        <button id="resetBtn">Resetten</button>
+        <button class="btn-yellow" id="revealAllBtn">Alle revealen</button>
+        <button id="hideAllBtn">Alle verstecken</button>
+        <button id="copyBtn">JSON kopieren</button>
+      </div>
+      <p class="hint">Felder: <strong>name</strong>, <strong>image</strong> (optional), <strong>value</strong> (wird per Klick aufgedeckt).</p>
+    </div>
+
+    <aside class="panel status-box">
+      <div class="field">
+        <label>Vorgegebene Mittelkarte (Slot 8)</label>
+        <select id="starterSelect"></select>
+      </div>
+      <div class="status-pill">Mittelkarte wird beim Start auf Slot 8 fixiert und gesperrt.</div>
+      <div class="status-pill">Du bist Gamemaster – ziehe Karten je nach Antwort deiner Freunde.</div>
+      <div class="status-pill">„Reveal"-Knopf deckt die echte Zahl auf.</div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const MIDDLE_SLOT = 8;
+const palette = ["#ef4444","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4","#3b82f6","#6366f1","#8b5cf6","#d946ef","#ec4899","#f43f5e","#84cc16","#10b981","#0ea5e9","#a855f7"];
+
+const DEFAULT_CARDS = [
+  { name: "Rewi",                   value: "3,44 Mio" },
+  { name: "Jules",                   value: "1,14 Mio" },
+  { name: "Bibi",                    value: "5,73 Mio" },
+  { name: "Mascha und der Bär",      value: "6,88 Mio" },
+  { name: "Ju",                      value: "6,2 Mio" },
+  { name: "Nadine Breaty",           value: "5,81 Mio" },
+  { name: "Paluten",                 value: "5,74 Mio" },
+  { name: "LaserLuca",               value: "5,75 Mio" },
+  { name: "Simpli",                  value: "2,44 Mio" },
+  { name: "MrWhosTheBoss",           value: "22,4 Mio" },
+  { name: "Made My Day",             value: "2,27 Mio" },
+  { name: "xQc",                     value: "2,48 Mio" },
+  { name: "Rainbolt",                value: "1,05 Mio" },
+  { name: "Sashka",                  value: "1,22 Mio" },
+  { name: "Verena ist schockiert",   value: "1.740" },
+  { name: "ZarbexLive",             value: "590K" }
+];
+
+function initialsFromName(n){return n.split(" ").filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join("");}
+
+function svgAvatar(name,color){
+  const i=initialsFromName(name)||"?";
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${color}"/><stop offset="100%" stop-color="#111827"/></linearGradient></defs><rect width="300" height="300" rx="28" fill="url(#g)"/><circle cx="150" cy="110" r="58" fill="rgba(255,255,255,.18)"/><path d="M63 247c16-48 54-73 87-73s72 25 87 73" fill="rgba(255,255,255,.16)"/><text x="150" y="139" font-family="Arial,sans-serif" font-size="56" font-weight="900" text-anchor="middle" fill="white">${i}</text></svg>`;
+  return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
+}
+
+function buildCards(raw){
+  return raw.slice(0,16).map((item,idx)=>{
+    const name=String(item.name||`Karte ${idx+1}`).trim();
+    const image=String(item.image||"").trim()||svgAvatar(name,palette[idx%palette.length]);
+    const value=String(item.value||"").trim();
+    return {id:crypto.randomUUID(),name,image,value,placedSlot:null,locked:false,revealed:false};
+  });
+}
+
+let state={
+  title:"Higher or Lower",theme:"YouTube Abonnenten",round:1,count:"Game 1/4",
+  starterId:null,cards:buildCards(DEFAULT_CARDS)
+};
+
+const markersEl=document.getElementById("markers");
+const playAreaEl=document.getElementById("playArea");
+const trayEl=document.getElementById("tray");
+const dataInputEl=document.getElementById("dataInput");
+const starterSelectEl=document.getElementById("starterSelect");
+const gameTitleInput=document.getElementById("gameTitleInput");
+const themeInput=document.getElementById("themeInput");
+const roundInput=document.getElementById("roundInput");
+const countInput=document.getElementById("countInput");
+
+function syncHeader(){
+  state.title=gameTitleInput.value.trim()||"Higher or Lower";
+  state.theme=themeInput.value.trim()||"Spiel";
+  state.round=Number(roundInput.value)||1;
+  state.count=countInput.value.trim()||"Game 1/1";
+  document.getElementById("titleBadge").textContent=state.title;
+  document.getElementById("gameNameBadge").textContent=state.theme;
+  document.getElementById("roundBadge").textContent=state.round;
+  document.getElementById("gameCountBadge").textContent=state.count;
+}
+
+function refreshJsonEditor(){
+  const out=state.cards.map(({name,image,value})=>{
+    const obj={name};
+    if(image&&!image.startsWith("data:"))obj.image=image;
+    if(value)obj.value=value;
+    return obj;
+  });
+  dataInputEl.value=JSON.stringify(out,null,2);
+}
+
+function refreshStarterSelect(){
+  const cur=state.starterId;
+  starterSelectEl.innerHTML="";
+  const none=document.createElement("option");
+  none.value="";none.textContent="Keine feste Mittelkarte";
+  starterSelectEl.appendChild(none);
+  state.cards.forEach(card=>{
+    const opt=document.createElement("option");
+    opt.value=card.id;opt.textContent=card.name;
+    starterSelectEl.appendChild(opt);
+  });
+  starterSelectEl.value=cur||"";
+}
+
+function createMarkers(){
+  markersEl.innerHTML="";
+  for(let i=0;i<=15;i++){
+    const m=document.createElement("div");
+    m.className="marker";
+    m.innerHTML=`<div class="number">${i}</div><div class="tick"></div>`;
+    markersEl.appendChild(m);
+  }
+}
+
+function getCardById(id){return state.cards.find(c=>c.id===id);}
+
+function createCardElement(card){
+  const el=document.createElement("article");
+  el.className="card"+(card.locked?" locked":"")+(card.revealed?" revealed":"");
+  el.draggable=!card.locked;
+  el.dataset.cardId=card.id;
+
+  el.innerHTML=`
+    ${card.locked?`<div class="lock-label">Mitte</div>`:""}
+    <img class="card-image" src="${card.image}" alt="${card.name}" draggable="false"/>
+    <div class="value-overlay">
+      <div class="value-number">${card.value||"?"}</div>
+      <div class="value-label">Abonnenten</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">${card.name}</div>
+    </div>
+    ${card.value?`<button class="reveal-btn" data-card-id="${card.id}">${card.revealed?"✓ Revealed":"► Reveal"}</button>`:""}
+  `;
+
+  const revBtn=el.querySelector(".reveal-btn");
+  if(revBtn){
+    revBtn.addEventListener("click",e=>{
+      e.stopPropagation();
+      card.revealed=!card.revealed;
+      render();
+    });
+  }
+
+  el.addEventListener("dragstart",e=>{
+    if(card.locked){e.preventDefault();return;}
+    el.classList.add("dragging");
+    e.dataTransfer.setData("text/plain",card.id);
+  });
+  el.addEventListener("dragend",()=>el.classList.remove("dragging"));
+  return el;
+}
+
+function createSlot(slotNumber){
+  const slotEl=document.createElement("div");
+  slotEl.className="slot";
+  slotEl.dataset.slot=slotNumber;
+
+  slotEl.addEventListener("dragover",e=>{e.preventDefault();slotEl.classList.add("drag-over");});
+  slotEl.addEventListener("dragleave",()=>slotEl.classList.remove("drag-over"));
+  slotEl.addEventListener("drop",e=>{
+    e.preventDefault();slotEl.classList.remove("drag-over");
+    const id=e.dataTransfer.getData("text/plain");
+    const card=getCardById(id);
+    if(!card||card.locked)return;
+    card.placedSlot=slotNumber;
+    render();
+  });
+
+  const cardsInSlot=state.cards.filter(c=>c.placedSlot===slotNumber);
+  if(cardsInSlot.length===0){
+    const empty=document.createElement("div");
+    empty.className="empty-note";empty.textContent="frei";
+    slotEl.appendChild(empty);
+  } else {
+    cardsInSlot.forEach(c=>slotEl.appendChild(createCardElement(c)));
+  }
+
+  const idx=document.createElement("div");
+  idx.className="slot-index";idx.textContent=slotNumber;
+  slotEl.appendChild(idx);
+  return slotEl;
+}
+
+function renderBoard(){
+  playAreaEl.innerHTML="";
+  for(let s=0;s<=15;s++) playAreaEl.appendChild(createSlot(s));
+}
+
+function renderTray(){
+  trayEl.innerHTML="";
+  trayEl.addEventListener("dragover",e=>{e.preventDefault();trayEl.classList.add("drag-over");});
+  trayEl.addEventListener("dragleave",()=>trayEl.classList.remove("drag-over"));
+  trayEl.addEventListener("drop",e=>{
+    e.preventDefault();trayEl.classList.remove("drag-over");
+    const id=e.dataTransfer.getData("text/plain");
+    const card=getCardById(id);
+    if(!card||card.locked)return;
+    card.placedSlot=null;render();
+  });
+
+  const trayCards=state.cards.filter(c=>c.placedSlot===null);
+  if(trayCards.length===0){
+    const note=document.createElement("div");
+    note.className="empty-note";note.textContent="Alle Karten sind auf dem Board.";
+    trayEl.appendChild(note);return;
+  }
+  trayCards.forEach(c=>trayEl.appendChild(createCardElement(c)));
+}
+
+function render(){
+  syncHeader();renderBoard();renderTray();refreshStarterSelect();
+}
+
+function unlockAll(){state.cards.forEach(c=>{c.locked=false;});}
+
+function startGame(){
+  unlockAll();
+  state.cards.forEach(c=>{c.placedSlot=null;c.revealed=false;});
+  if(state.starterId){
+    const s=getCardById(state.starterId);
+    if(s){s.placedSlot=MIDDLE_SLOT;s.locked=true;}
+  }
+  render();
+}
+
+function resetPositions(){
+  unlockAll();
+  state.cards.forEach(c=>{c.placedSlot=null;c.revealed=false;});
+  if(state.starterId){
+    const s=getCardById(state.starterId);
+    if(s){s.placedSlot=MIDDLE_SLOT;s.locked=true;}
+  }
+  render();
+}
+
+function loadJsonData(){
+  try{
+    const parsed=JSON.parse(dataInputEl.value);
+    if(!Array.isArray(parsed))throw new Error("JSON muss eine Liste sein.");
+    if(parsed.length===0)throw new Error("Mindestens eine Karte.");
+    state.cards=buildCards(parsed);
+    state.starterId=state.cards[0]?.id||null;
+    refreshStarterSelect();
+    startGame();
+  }catch(err){alert("Fehler im JSON: "+err.message);}
+}
+
+gameTitleInput.addEventListener("input",syncHeader);
+themeInput.addEventListener("input",syncHeader);
+roundInput.addEventListener("input",syncHeader);
+countInput.addEventListener("input",syncHeader);
+starterSelectEl.addEventListener("change",()=>{state.starterId=starterSelectEl.value||null;});
+document.getElementById("startBtn").addEventListener("click",startGame);
+document.getElementById("resetBtn").addEventListener("click",resetPositions);
+document.getElementById("loadDataBtn").addEventListener("click",loadJsonData);
+document.getElementById("revealAllBtn").addEventListener("click",()=>{state.cards.forEach(c=>c.revealed=true);render();});
+document.getElementById("hideAllBtn").addEventListener("click",()=>{state.cards.forEach(c=>c.revealed=false);render();});
+document.getElementById("copyBtn").addEventListener("click",()=>{
+  navigator.clipboard.writeText(dataInputEl.value).then(()=>alert("Kopiert!")).catch(()=>alert("Bitte manuell kopieren."));
+});
+
+createMarkers();
+state.starterId=state.cards[0]?.id||null;
+refreshJsonEditor();
+refreshStarterSelect();
+startGame();
+</script>
+</body>
+</html>
