@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Higher or Lower – Gamemaster Board</title>
+  <style>
+    :root{
+      --bg:#09090b;
+      --panel:#101116;
+      --panel-2:#151821;
+      --line:#d8d8d8;
+      --text:#f6f6f7;
+      --muted:#a9abb4;
+      --red:#ff3b4d;
+      --red-glow:rgba(255,59,77,.35);
+      --green:#7fff5b;
+      --slot:#1b1e28;
+      --slot-hover:#232736;
+      --cyan:#2dd4bf;
+      --yellow:#ffcf5a;
+      --shadow:0 20px 60px rgba(0,0,0,.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: Inter, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(36,88,255,.16), transparent 22%),
+        radial-gradient(circle at top right, rgba(255,59,77,.12), transparent 24%),
+        linear-gradient(180deg, #0c0c10 0%, #09090b 100%);
+    }
+
+    .app{
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 16px;
+      border-radius:999px;
+      background:linear-gradient(135deg, rgba(31,41,55,.85), rgba(17,24,39,.9));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 0 24px rgba(45,212,191,.12);
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:13px;
+    }
+
+    .badge.red{
+      box-shadow:0 0 24px rgba(255,59,77,.18);
+    }
+
+    .title-wrap{
+      flex:1;
+      min-width:260px;
+      text-align:center;
+    }
+
+    .main-title{
+      margin:0;
+      font-size:clamp(34px, 5vw, 76px);
+      line-height:.92;
+      text-transform:uppercase;
+      font-weight:1000;
+      letter-spacing:.03em;
+      font-style:italic;
+      text-shadow:
+        0 0 18px rgba(255,255,255,.04),
+        0 0 28px rgba(0,0,0,.45);
+    }
+
+    .title-accent{
+      color:var(--green);
+      font-size:18px;
+      vertical-align:middle;
+      margin:0 8px;
+    }
+
+    .board{
+      position:relative;
+      background:
+        linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,.01));
+      background-size: 48px 48px, 48px 48px, auto;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:28px;
+      padding:28px 22px 22px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .scale-wrap{
+      position:relative;
+      padding:26px 8px 12px;
+      margin-bottom:18px;
+    }
+
+    .scale-line{
+      position:absolute;
+      left:14px;
+      right:14px;
+      top:63px;
+      height:2px;
+      background:var(--line);
+      opacity:.9;
+    }
+
+    .markers{
+      display:grid;
+      grid-template-columns:repeat(16, 1fr);
+      gap:0;
+      position:relative;
+      z-index:2;
+    }
+
+    .marker{
+      text-align:center;
+      position:relative;
+      min-height:70px;
+    }
+
+    .marker .number{
+      font-size:30px;
+      font-weight:900;
+      color:var(--red);
+      text-shadow:0 0 12px rgba(255,59,77,.28);
+      margin-bottom:12px;
+    }
+
+    .marker .tick{
+      width:2px;
+      height:25px;
+      background:#f1f1f1;
+      margin:0 auto;
+      border-radius:999px;
+      box-shadow:0 0 10px rgba(255,255,255,.1);
+    }
+
+    .end-labels{
+      display:flex;
+      justify-content:space-between;
+      margin-top:-8px;
+      padding:0 2px;
+      color:#ededed;
+      font-size:18px;
+      font-weight:700;
+      text-transform:lowercase;
+    }
+
+    .play-area{
+      display:grid;
+      grid-template-columns:repeat(16, minmax(68px, 1fr));
+      gap:10px;
+      align-items:end;
+      min-height:300px;
+      margin-bottom:24px;
+    }
+
+    .slot{
+      min-height:250px;
+      border-radius:18px;
+      padding:8px 6px;
+      background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,.01));
+      border:1px dashed rgba(255,255,255,.07);
+      display:flex;
+      flex-direction:column-reverse;
+      gap:10px;
+      justify-content:flex-start;
+      transition:.18s ease;
+    }
+
+    .slot.drag-over,
+    .tray.drag-over{
+      background:var(--slot-hover);
+      border-color:rgba(45,212,191,.7);
+      box-shadow:0 0 0 2px rgba(45,212,191,.12) inset;
+    }
+
+    .slot-index{
+      text-align:center;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:auto;
+      padding-top:8px;
+      opacity:.75;
+    }
+
+    .card{
+      position:relative;
+      user-select:none;
+      cursor:grab;
+      border-radius:14px;
+      overflow:hidden;
+      background:#11131a;
+      border:2px solid var(--red);
+      box-shadow:
+        0 0 0 2px rgba(255,59,77,.08),
+        0 0 18px var(--red-glow);
+      transition:transform .14s ease, box-shadow .14s ease, opacity .14s ease;
+    }
+
+    .card:hover{
+      transform:translateY(-2px);
+    }
+
+    .card.dragging{
+      opacity:.45;
+      transform:scale(.98);
+      cursor:grabbing;
+    }
+
+    .card.locked{
+      border-color:var(--cyan);
+      box-shadow:
+        0 0 0 2px rgba(45,212,191,.10),
+        0 0 18px rgba(45,212,191,.22);
+    }
+
+    .card-image{
+      aspect-ratio:1/1;
+      width:100%;
+      object-fit:cover;
+      display:block;
+      background:#222;
+    }
+
+    .card-body{
+      padding:8px 6px 10px;
+      text-align:center;
+      background:linear-gradient(180deg, rgba(0,0,0,.14), rgba(0,0,0,.28));
+    }
+
+    .card-name{
+      font-size:14px;
+      font-weight:900;
+      line-height:1.05;
+      text-transform:uppercase;
+      word-break:break-word;
+      letter-spacing:.03em;
+    }
+
+    .lock-label{
+      position:absolute;
+      top:8px;
+      right:8px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:rgba(0,0,0,.72);
+      color:var(--cyan);
+      font-size:11px;
+      font-weight:900;
+      text-transform:uppercase;
+      border:1px solid rgba(45,212,191,.35);
+    }
+
+    .tray-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+      flex-wrap:wrap;
+    }
+
+    .tray{
+      min-height:156px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.012));
+      padding:14px;
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(112px, 1fr));
+      gap:14px;
+      align-items:start;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap:12px;
+      margin:18px 0 16px;
+    }
+
+    .panel{
+      background:linear-gradient(180deg, rgba(18,20,28,.95), rgba(12,13,18,.96));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .field label{
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+    }
+
+    input, select, textarea, button{
+      font:inherit;
+    }
+
+    input, select, textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      color:var(--text);
+      background:#0e1017;
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:12px;
+      padding:12px 14px;
+    }
+
+    textarea{
+      min-height:240px;
+      resize:vertical;
+      line-height:1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:13px;
+    }
+
+    .button-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      padding:12px 16px;
+      border-radius:12px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:white;
+      background:#222838;
+      transition:.18s ease;
+    }
+
+    button:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.06);
+    }
+
+    .btn-primary{
+      background:linear-gradient(135deg, #ff3b4d, #d9233c);
+      box-shadow:0 0 18px rgba(255,59,77,.22);
+    }
+
+    .btn-secondary{
+      background:linear-gradient(135deg, #1e293b, #0f172a);
+    }
+
+    .btn-cyan{
+      background:linear-gradient(135deg, #0f766e, #155e75);
+      box-shadow:0 0 18px rgba(45,212,191,.14);
+    }
+
+    .setup{
+      margin-top:16px;
+      display:grid;
+      grid-template-columns: 1fr 340px;
+      gap:16px;
+    }
+
+    .hint{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.5;
+    }
+
+    .small{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .status-box{
+      display:grid;
+      gap:10px;
+      align-content:start;
+    }
+
+    .status-pill{
+      padding:12px 14px;
+      border-radius:14px;
+      background:#0e1017;
+      border:1px solid rgba(255,255,255,.08);
+      font-weight:700;
+    }
+
+    .example-list{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .example-item{
+      padding:10px 12px;
+      border-radius:12px;
+      background:#0e1017;
+      border:1px solid rgba(255,255,255,.08);
+      color:#d7d9e0;
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .empty-note{
+      color:var(--muted);
+      text-align:center;
+      padding:24px 10px;
+      font-weight:700;
+    }
+
+    @media (max-width: 1100px){
+      .controls,
+      .setup{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width: 900px){
+      .play-area{
+        grid-template-columns:repeat(8, 1fr);
+      }
+      .marker .number{
+        font-size:22px;
+      }
+    }
+
+    @media (max-width: 640px){
+      .app{
+        padding:12px;
+      }
+      .board{
+        padding:18px 12px 14px;
+        border-radius:20px;
+      }
+      .play-area{
+        grid-template-columns:repeat(4, 1fr);
+      }
+      .tray{
+        grid-template-columns:repeat(2, 1fr);
+      }
+      .main-title{
+        font-size:44px;
+      }
+      .marker .number{
+        font-size:18px;
+      }
+      .end-labels{
+        font-size:14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="badge">Round <span id="roundBadge">2</span></div>
+
+      <div class="title-wrap">
+        <h1 class="main-title">
+          <span class="title-accent">◄</span>
+          <span id="titleBadge">Higher or Lower</span>
+          <span class="title-accent">►</span>
+        </h1>
+      </div>
+
+      <div class="badge red">
+        <span id="gameNameBadge">Streamer-Follower</span>
+        <span id="gameCountBadge">Game 1/4</span>
+      </div>
+    </div>
+
+    <section class="board">
+      <div class="scale-wrap">
+        <div class="scale-line"></div>
+        <div class="markers" id="markers"></div>
+        <div class="end-labels">
+          <span>low</span>
+          <span>high</span>
+        </div>
+      </div>
+
+      <div class="play-area" id="playArea"></div>
+
+      <div class="tray-title">
+        <h2 style="margin:0;font-size:20px;text-transform:uppercase;letter-spacing:.04em;">Karten-Bank</h2>
+        <div class="small">Ziehe Karten in einen Slot von 0 bis 15 oder zurück in die Bank.</div>
+      </div>
+      <div class="tray" id="tray"></div>
+    </section>
+
+    <div class="controls">
+      <div class="panel field">
+        <label for="gameTitleInput">Großer Titel</label>
+        <input id="gameTitleInput" value="Higher or Lower" />
+      </div>
+
+      <div class="panel field">
+        <label for="themeInput">Kleiner Spielname</label>
+        <input id="themeInput" value="Streamer-Follower" />
+      </div>
+
+      <div class="panel field">
+        <label for="roundInput">Runde</label>
+        <input id="roundInput" type="number" min="1" value="2" />
+      </div>
+
+      <div class="panel field">
+        <label for="countInput">Spielstand oben rechts</label>
+        <input id="countInput" value="Game 1/4" />
+      </div>
+    </div>
+
+    <div class="setup">
+      <div class="panel">
+        <div class="field">
+          <label for="dataInput">Spiel-Daten (JSON)</label>
+          <textarea id="dataInput"></textarea>
+        </div>
+
+        <div class="button-row">
+          <button class="btn-cyan" id="loadDataBtn">Daten laden</button>
+          <button class="btn-primary" id="startBtn">Spiel starten</button>
+          <button class="btn-secondary" id="resetBtn">Positionen resetten</button>
+          <button class="btn-secondary" id="copyBtn">JSON kopieren</button>
+        </div>
+
+        <p class="hint" style="margin-top:14px;">
+          Format: Eine Liste aus Objekten mit <strong>name</strong> und optional <strong>image</strong>.
+          Wenn kein Bild angegeben ist, wird automatisch ein Platzhalter mit Initialen erzeugt.
+        </p>
+      </div>
+
+      <aside class="panel status-box">
+        <div class="field">
+          <label for="starterSelect">Vorgegebene Mittelkarte</label>
+          <select id="starterSelect"></select>
+        </div>
+
+        <div class="status-pill">
+          Mittel-Slot ist fest auf <strong>8</strong>.
+        </div>
+
+        <div class="status-pill">
+          Die ausgewählte Starterkarte wird beim Start automatisch auf die Mitte gesetzt und gesperrt.
+        </div>
+
+        <div class="example-list">
+          <div class="example-item">
+            Beispiel-Thema: Streamer mit den meisten Followern.
+          </div>
+          <div class="example-item">
+            Du bist Gamemaster und ziehst die Karten je nach Antwort deiner Freunde nach links oder rechts.
+          </div>
+          <div class="example-item">
+            Für GitHub Pages reicht diese eine Datei als <strong>index.html</strong>.
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const MIN_SLOT = 0;
+    const MAX_SLOT = 15;
+    const MIDDLE_SLOT = 8;
+
+    const seedNames = [
+      "Rewi", "Trymacs", "Knossi", "Sidney", "ApoRed",
+      "Eli", "Amar", "Tobifas", "Kroko", "HoneyPuu",
+      "Vadeal", "Papaplatte", "Marli", "Drachenlord", "Jan"
+    ];
+
+    const palette = [
+      "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
+      "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#d946ef",
+      "#ec4899", "#f43f5e", "#84cc16", "#10b981", "#0ea5e9"
+    ];
+
+    function initialsFromName(name){
+      return name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0].toUpperCase())
+        .join("");
+    }
+
+    function svgAvatar(name, color){
+      const initials = initialsFromName(name) || "?";
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="${color}" />
+              <stop offset="100%" stop-color="#111827" />
+            </linearGradient>
+          </defs>
+          <rect width="300" height="300" rx="28" fill="url(#g)"/>
+          <circle cx="150" cy="110" r="58" fill="rgba(255,255,255,.18)"/>
+          <path d="M63 247c16-48 54-73 87-73s72 25 87 73" fill="rgba(255,255,255,.16)"/>
+          <text x="150" y="279" font-family="Arial, sans-serif" font-size="46" font-weight="900" text-anchor="middle" fill="white">${initials}</text>
+        </svg>
+      `;
+      return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+    }
+
+    function makeDemoCards(){
+      return seedNames.map((name, index) => ({
+        id: crypto.randomUUID(),
+        name,
+        image: svgAvatar(name, palette[index % palette.length]),
+        placedSlot: null,
+        locked: false
+      }));
+    }
+
+    let state = {
+      title: "Higher or Lower",
+      theme: "Streamer-Follower",
+      round: 2,
+      count: "Game 1/4",
+      starterId: null,
+      cards: makeDemoCards()
+    };
+
+    const markersEl = document.getElementById("markers");
+    const playAreaEl = document.getElementById("playArea");
+    const trayEl = document.getElementById("tray");
+    const dataInputEl = document.getElementById("dataInput");
+    const starterSelectEl = document.getElementById("starterSelect");
+
+    const gameTitleInput = document.getElementById("gameTitleInput");
+    const themeInput = document.getElementById("themeInput");
+    const roundInput = document.getElementById("roundInput");
+    const countInput = document.getElementById("countInput");
+
+    const titleBadge = document.getElementById("titleBadge");
+    const gameNameBadge = document.getElementById("gameNameBadge");
+    const roundBadge = document.getElementById("roundBadge");
+    const gameCountBadge = document.getElementById("gameCountBadge");
+
+    function syncHeader(){
+      state.title = gameTitleInput.value.trim() || "Higher or Lower";
+      state.theme = themeInput.value.trim() || "Spiel";
+      state.round = Number(roundInput.value) || 1;
+      state.count = countInput.value.trim() || "Game 1/1";
+
+      titleBadge.textContent = state.title;
+      gameNameBadge.textContent = state.theme;
+      roundBadge.textContent = state.round;
+      gameCountBadge.textContent = state.count;
+    }
+
+    function refreshJsonEditor(){
+      const exportCards = state.cards.map(({ name, image }) => ({ name, image }));
+      dataInputEl.value = JSON.stringify(exportCards, null, 2);
+    }
+
+    function refreshStarterSelect(){
+      const current = state.starterId;
+      starterSelectEl.innerHTML = "";
+
+      const none = document.createElement("option");
+      none.value = "";
+      none.textContent = "Keine feste Mittelkarte";
+      starterSelectEl.appendChild(none);
+
+      state.cards.forEach(card => {
+        const option = document.createElement("option");
+        option.value = card.id;
+        option.textContent = card.name;
+        starterSelectEl.appendChild(option);
+      });
+
+      starterSelectEl.value = current || "";
+    }
+
+    function createMarkers(){
+      markersEl.innerHTML = "";
+      for(let i = MIN_SLOT; i <= MAX_SLOT; i++){
+        const marker = document.createElement("div");
+        marker.className = "marker";
+        marker.innerHTML = `
+          <div class="number">${i}</div>
+          <div class="tick"></div>
+        `;
+        markersEl.appendChild(marker);
+      }
+    }
+
+    function getCardById(id){
+      return state.cards.find(card => card.id === id);
+    }
+
+    function createCardElement(card){
+      const cardEl = document.createElement("article");
+      cardEl.className = "card" + (card.locked ? " locked" : "");
+      cardEl.draggable = !card.locked;
+      cardEl.dataset.cardId = card.id;
+
+      cardEl.innerHTML = `
+        ${card.locked ? `<div class="lock-label">Mitte</div>` : ""}
+        <img class="card-image" src="${card.image}" alt="${card.name}" draggable="false" />
+        <div class="card-body">
+          <div class="card-name">${card.name}</div>
+        </div>
+      `;
+
+      cardEl.addEventListener("dragstart", e => {
+        if(card.locked){
+          e.preventDefault();
+          return;
+        }
+        cardEl.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", card.id);
+      });
+
+      cardEl.addEventListener("dragend", () => {
+        cardEl.classList.remove("dragging");
+      });
+
+      return cardEl;
+    }
+
+    function createSlot(slotNumber){
+      const slotEl = document.createElement("div");
+      slotEl.className = "slot";
+      slotEl.dataset.slot = slotNumber;
+
+      slotEl.addEventListener("dragover", e => {
+        e.preventDefault();
+        slotEl.classList.add("drag-over");
+      });
+
+      slotEl.addEventListener("dragleave", () => {
+        slotEl.classList.remove("drag-over");
+      });
+
+      slotEl.addEventListener("drop", e => {
+        e.preventDefault();
+        slotEl.classList.remove("drag-over");
+        const id = e.dataTransfer.getData("text/plain");
+        const card = getCardById(id);
+        if(!card || card.locked) return;
+        card.placedSlot = slotNumber;
+        render();
+      });
+
+      const cardsInSlot = state.cards.filter(card => card.placedSlot === slotNumber);
+
+      if(cardsInSlot.length === 0){
+        const empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.textContent = "frei";
+        slotEl.appendChild(empty);
+      } else {
+        cardsInSlot.forEach(card => {
+          slotEl.appendChild(createCardElement(card));
+        });
+      }
+
+      const index = document.createElement("div");
+      index.className = "slot-index";
+      index.textContent = "Slot " + slotNumber;
+      slotEl.appendChild(index);
+
+      return slotEl;
+    }
+
+    function renderBoard(){
+      playAreaEl.innerHTML = "";
+      for(let slot = MIN_SLOT; slot <= MAX_SLOT; slot++){
+        playAreaEl.appendChild(createSlot(slot));
+      }
+    }
+
+    function renderTray(){
+      trayEl.innerHTML = "";
+
+      trayEl.addEventListener("dragover", trayDragOver);
+      trayEl.addEventListener("dragleave", trayDragLeave);
+      trayEl.addEventListener("drop", trayDrop);
+
+      const trayCards = state.cards.filter(card => card.placedSlot === null);
+
+      if(trayCards.length === 0){
+        const note = document.createElement("div");
+        note.className = "empty-note";
+        note.textContent = "Alle Karten liegen aktuell auf dem Board.";
+        trayEl.appendChild(note);
+        return;
+      }
+
+      trayCards.forEach(card => {
+        trayEl.appendChild(createCardElement(card));
+      });
+    }
+
+    function trayDragOver(e){
+      e.preventDefault();
+      trayEl.classList.add("drag-over");
+    }
+
+    function trayDragLeave(){
+      trayEl.classList.remove("drag-over");
+    }
+
+    function trayDrop(e){
+      e.preventDefault();
+      trayEl.classList.remove("drag-over");
+      const id = e.dataTransfer.getData("text/plain");
+      const card = getCardById(id);
+      if(!card || card.locked) return;
+      card.placedSlot = null;
+      render();
+    }
+
+    function render(){
+      syncHeader();
+      renderBoard();
+      renderTray();
+      refreshStarterSelect();
+    }
+
+    function unlockAllCards(){
+      state.cards.forEach(card => {
+        card.locked = false;
+      });
+    }
+
+    function startGame(){
+      unlockAllCards();
+      state.cards.forEach(card => {
+        card.placedSlot = null;
+      });
+
+      if(state.starterId){
+        const starter = getCardById(state.starterId);
+        if(starter){
+          starter.placedSlot = MIDDLE_SLOT;
+          starter.locked = true;
+        }
+      }
+
+      render();
+    }
+
+    function resetPositions(){
+      unlockAllCards();
+      state.cards.forEach(card => {
+        card.placedSlot = null;
+      });
+
+      if(state.starterId){
+        const starter = getCardById(state.starterId);
+        if(starter){
+          starter.placedSlot = MIDDLE_SLOT;
+          starter.locked = true;
+        }
+      }
+
+      render();
+    }
+
+    function loadJsonData(){
+      try{
+        const parsed = JSON.parse(dataInputEl.value);
+        if(!Array.isArray(parsed)) throw new Error("JSON muss eine Liste sein.");
+
+        const nextCards = parsed.slice(0, 15).map((item, index) => {
+          const name = String(item.name || `Karte ${index + 1}`).trim();
+          const image = String(item.image || "").trim() || svgAvatar(name, palette[index % palette.length]);
+          return {
+            id: crypto.randomUUID(),
+            name,
+            image,
+            placedSlot: null,
+            locked: false
+          };
+        });
+
+        if(nextCards.length === 0){
+          throw new Error("Mindestens eine Karte eintragen.");
+        }
+
+        state.cards = nextCards;
+        state.starterId = nextCards[0]?.id || null;
+        refreshStarterSelect();
+        startGame();
+      } catch (error){
+        alert("Fehler im JSON: " + error.message);
+      }
+    }
+
+    function copyJson(){
+      navigator.clipboard.writeText(dataInputEl.value)
+        .then(() => alert("JSON kopiert."))
+        .catch(() => alert("Kopieren leider nicht möglich. Bitte manuell markieren."));
+    }
+
+    gameTitleInput.addEventListener("input", syncHeader);
+    themeInput.addEventListener("input", syncHeader);
+    roundInput.addEventListener("input", syncHeader);
+    countInput.addEventListener("input", syncHeader);
+
+    starterSelectEl.addEventListener("change", () => {
+      state.starterId = starterSelectEl.value || null;
+    });
+
+    document.getElementById("startBtn").addEventListener("click", startGame);
+    document.getElementById("resetBtn").addEventListener("click", resetPositions);
+    document.getElementById("loadDataBtn").addEventListener("click", loadJsonData);
+    document.getElementById("copyBtn").addEventListener("click", copyJson);
+
+    createMarkers();
+    state.starterId = state.cards[0]?.id || null;
+    refreshJsonEditor();
+    refreshStarterSelect();
+    startGame();
+  </script>
+</body>
+</html>
